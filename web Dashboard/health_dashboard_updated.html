@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Monitoring Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f0f4f8;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 1000px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .header p {
+            color: #7f8c8d;
+            font-size: 16px;
+        }
+        
+        .status {
+            background-color: #27ae60;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        
+        .disconnected {
+            background-color: #e74c3c;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .card {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        }
+        
+        .card-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+        }
+        
+        .temp-bg {
+            background: linear-gradient(90deg, #ff7e5f, #feb47b);
+        }
+        
+        .humidity-bg {
+            background: linear-gradient(90deg, #4facfe, #00f2fe);
+        }
+        
+        .heart-bg {
+            background: linear-gradient(90deg, #f43b47, #ff4e50);
+        }
+        
+        .oxygen-bg {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+        
+        .body-temp-bg {
+            background: linear-gradient(90deg, #f093fb, #f5576c);
+        }
+        
+        .card h2 {
+            color: #7f8c8d;
+            font-size: 16px;
+            margin-bottom: 5px;
+            margin-top: 10px;
+        }
+        
+        .value {
+            font-size: 42px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 10px 0;
+            transition: all 0.3s;
+        }
+        
+        .unit {
+            font-size: 18px;
+            color: #7f8c8d;
+        }
+        
+        .icon {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .chart-container {
+            height: 80px;
+            margin-top: 15px;
+            position: relative;
+        }
+        
+        .chart {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .updated {
+            animation: pulse 0.5s;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+        
+        .connection-controls {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .connect-btn {
+            background-color: #2ecc71;
+            color: white;
+        }
+        
+        .connect-btn:hover {
+            background-color: #27ae60;
+        }
+        
+        .disconnect-btn {
+            background-color: #e74c3c;
+            color: white;
+        }
+        
+        .disconnect-btn:hover {
+            background-color: #c0392b;
+        }
+        
+        .demo-btn {
+            background-color: #3498db;
+            color: white;
+        }
+        
+        .demo-btn:hover {
+            background-color: #2980b9;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .card {
+                padding: 15px;
+            }
+            
+            .value {
+                font-size: 36px;
+            }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Health Monitoring Dashboard</h1>
+            <p>Real-time health and environmental metrics</p>
+            <div id="connection-status" class="status disconnected">Disconnected</div>
+            
+            <div class="connection-controls">
+                <button id="connect-btn" class="connect-btn">Connect to ESP</button>
+                <button id="disconnect-btn" class="disconnect-btn">Disconnect</button>
+                <button id="demo-btn" class="demo-btn">Demo Mode</button>
+            </div>
+        </div>
+        
+        <div class="dashboard">
+            <div class="card">
+                <div class="card-bg temp-bg"></div>
+                <div class="icon">🌡️</div>
+                <h2>Room Temperature</h2>
+                <div id="room-temp" class="value">--<span class="unit">°C</span></div>
+                <div class="chart-container">
+                    <canvas id="room-temp-chart" class="chart"></canvas>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-bg humidity-bg"></div>
+                <div class="icon">💧</div>
+                <h2>Room Humidity</h2>
+                <div id="room-humidity" class="value">--<span class="unit">%</span></div>
+                <div class="chart-container">
+                    <canvas id="room-humidity-chart" class="chart"></canvas>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-bg heart-bg"></div>
+                <div class="icon">❤️</div>
+                <h2>Heart Rate</h2>
+                <div id="heart-rate" class="value">--<span class="unit">BPM</span></div>
+                <div class="chart-container">
+                    <canvas id="heart-rate-chart" class="chart"></canvas>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-bg oxygen-bg"></div>
+                <div class="icon">🫁</div>
+                <h2>Blood Oxygen</h2>
+                <div id="blood-oxygen" class="value">--<span class="unit">%</span></div>
+                <div class="chart-container">
+                    <canvas id="blood-oxygen-chart" class="chart"></canvas>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-bg body-temp-bg"></div>
+                <div class="icon">🔥</div>
+                <h2>Body Temperature</h2>
+                <div id="body-temp" class="value">--<span class="unit">°C</span></div>
+                <div class="chart-container">
+                    <canvas id="body-temp-chart" class="chart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Last updated: <span id="last-updated">Never</span></p>
+        </div>
+    </div>
+    
+    <script>
+        // Configuration
+        const maxDataPoints = 20;
+        let isDemoActive = false;
+        let demoInterval;
+        let socket;
+        
+        // Chart configuration and data objects
+        const chartConfigs = {
+            'room-temp': {
+                label: 'Room Temperature',
+                data: Array(maxDataPoints).fill(null),
+                color: 'rgba(255, 126, 95, 0.5)',
+                borderColor: 'rgba(255, 126, 95, 1)',
+                min: 15,
+                max: 35,
+                unit: '°C',
+                demoRange: [19, 28]
+            },
+            'room-humidity': {
+                label: 'Room Humidity',
+                data: Array(maxDataPoints).fill(null),
+                color: 'rgba(79, 172, 254, 0.5)',
+                borderColor: 'rgba(79, 172, 254, 1)',
+                min: 0,
+                max: 100,
+                unit: '%',
+                demoRange: [30, 70]
+            },
+            'heart-rate': {
+                label: 'Heart Rate',
+                data: Array(maxDataPoints).fill(null),
+                color: 'rgba(244, 59, 71, 0.5)',
+                borderColor: 'rgba(244, 59, 71, 1)',
+                min: 40,
+                max: 180,
+                unit: 'BPM',
+                demoRange: [60, 100]
+            },
+            'blood-oxygen': {
+                label: 'Blood Oxygen',
+                data: Array(maxDataPoints).fill(null),
+                color: 'rgba(102, 126, 234, 0.5)',
+                borderColor: 'rgba(102, 126, 234, 1)',
+                min: 85,
+                max: 100,
+                unit: '%',
+                demoRange: [94, 99]
+            },
+            'body-temp': {
+                label: 'Body Temperature',
+                data: Array(maxDataPoints).fill(null),
+                color: 'rgba(240, 147, 251, 0.5)',
+                borderColor: 'rgba(240, 147, 251, 1)',
+                min: 35,
+                max: 40,
+                unit: '°C',
+                demoRange: [36.0, 37.5]
+            }
+        };
+        
+        // Charts objects
+        const charts = {};
+        
+        // Initialize charts
+        function initCharts() {
+            for (const [id, config] of Object.entries(chartConfigs)) {
+                const ctx = document.getElementById(`${id}-chart`).getContext('2d');
+                
+                charts[id] = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: Array(maxDataPoints).fill(''),
+                        datasets: [{
+                            label: config.label,
+                            data: config.data,
+                            backgroundColor: config.color,
+                            borderColor: config.borderColor,
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                min: config.min,
+                                max: config.max,
+                                display: false
+                            },
+                            x: {
+                                display: false
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                enabled: false
+                            }
+                        },
+                        animation: {
+                            duration: 500
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Update chart data
+        function updateChart(id, value) {
+            const config = chartConfigs[id];
+            config.data.push(value);
+            if (config.data.length > maxDataPoints) {
+                config.data.shift();
+            }
+            
+            charts[id].data.datasets[0].data = config.data;
+            charts[id].update();
+        }
+        
+        // Update display value
+        function updateValue(id, value) {
+            const displayEl = document.getElementById(id);
+            const roundedValue = typeof value === 'number' ? 
+                (id === 'body-temp' ? value.toFixed(1) : Math.round(value)) : 
+                value;
+                
+            displayEl.innerHTML = `${roundedValue}<span class="unit">${chartConfigs[id].unit}</span>`;
+            displayEl.classList.add('updated');
+            
+            setTimeout(() => {
+                displayEl.classList.remove('updated');
+            }, 500);
+            
+            // Update chart
+            if (typeof value === 'number') {
+                updateChart(id, value);
+            }
+        }
+        
+        // Update all values
+        function updateValues(data) {
+            for (const [key, value] of Object.entries(data)) {
+                if (chartConfigs[key]) {
+                    updateValue(key, value);
+                }
+            }
+            
+            // Update timestamp
+            const now = new Date();
+            document.getElementById('last-updated').textContent = now.toLocaleTimeString();
+        }
+        
+        // Generate random value within range
+        function randomValue(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+        
+        // Demo mode: generate random data
+        function startDemoMode() {
+            isDemoActive = true;
+            document.getElementById('connection-status').textContent = 'Demo Mode';
+            document.getElementById('connection-status').classList.remove('disconnected');
+            
+            demoInterval = setInterval(() => {
+                const demoData = {};
+                
+                for (const [id, config] of Object.entries(chartConfigs)) {
+                    // Make the values more realistic by adding some correlation between updates
+                    const lastValue = config.data[config.data.length - 1];
+                    let newValue;
+                    
+                    if (lastValue === null) {
+                        // Initial value
+                        newValue = randomValue(config.demoRange[0], config.demoRange[1]);
+                    } else {
+                        // Subsequent values: slight random change from previous
+                        const change = randomValue(-0.5, 0.5);
+                        newValue = lastValue + change;
+                        
+                        // Keep within range
+                        if (newValue < config.demoRange[0]) newValue = config.demoRange[0];
+                        if (newValue > config.demoRange[1]) newValue = config.demoRange[1];
+                    }
+                    
+                    demoData[id] = newValue;
+                }
+                
+                updateValues(demoData);
+            }, 1000);
+        }
+        
+        // Stop demo mode
+        function stopDemoMode() {
+            if (demoInterval) {
+                clearInterval(demoInterval);
+                demoInterval = null;
+            }
+            isDemoActive = false;
+        }
+        
+        // Connect to ESP WebSocket
+        function connectToESP() {
+            // First stop demo if running
+            stopDemoMode();
+            
+            // Use your ESP's IP address and port here
+            const wsUrl = 'ws://192.168.1.100:81';
+            
+            try {
+                socket = new WebSocket(wsUrl);
+                
+                socket.onopen = function() {
+                    document.getElementById('connection-status').textContent = 'Connected';
+                    document.getElementById('connection-status').classList.remove('disconnected');
+                };
+                
+                socket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        updateValues({
+                            'room-temp': data.roomTemp,
+                            'room-humidity': data.roomHumidity,
+                            'heart-rate': data.heartRate,
+                            'blood-oxygen': data.bloodOxygen,
+                            'body-temp': data.bodyTemp
+                        });
+                    } catch (e) {
+                        console.error('Error parsing data:', e);
+                    }
+                };
+                
+                socket.onclose = function() {
+                    document.getElementById('connection-status').textContent = 'Disconnected';
+                    document.getElementById('connection-status').classList.add('disconnected');
+                };
+                
+                socket.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    document.getElementById('connection-status').textContent = 'Connection Error';
+                    document.getElementById('connection-status').classList.add('disconnected');
+                    alert('Failed to connect to ESP. Check if the device is online and try again.');
+                };
+            } catch (e) {
+                console.error('Error connecting to WebSocket:', e);
+                alert('Failed to connect to ESP. Check if the device is online and try again.');
+            }
+        }
+        
+        // Disconnect from ESP
+        function disconnectFromESP() {
+            if (socket) {
+                socket.close();
+                socket = null;
+            }
+            
+            document.getElementById('connection-status').textContent = 'Disconnected';
+            document.getElementById('connection-status').classList.add('disconnected');
+        }
+        
+        // Initialize the application
+        function init() {
+            initCharts();
+            
+            // Button event listeners
+            document.getElementById('connect-btn').addEventListener('click', connectToESP);
+            document.getElementById('disconnect-btn').addEventListener('click', disconnectFromESP);
+            document.getElementById('demo-btn').addEventListener('click', function() {
+                if (isDemoActive) {
+                    stopDemoMode();
+                    document.getElementById('connection-status').textContent = 'Disconnected';
+                    document.getElementById('connection-status').classList.add('disconnected');
+                } else {
+                    disconnectFromESP();
+                    startDemoMode();
+                }
+            });
+        }
+        
+        // Start the application when the page is loaded
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
